@@ -1,0 +1,17 @@
+{
+  "received_message": "마스카라 50개 주문하고 싶어요.",
+  "agent_response": "요청하신 마스카라 상품의 주문 가능 여부 검증 결과입니다.\n\n- **상품 ID**: 1\n- **상품명**: Essence Mascara Lash Princess\n- **주문 수량**: 50개\n- **단가**: $9.99\n- **총 금액**: $499.50\n- **주문 가능 여부**: 주문 가능 (주문 검증 통과)\n\n해당 상품(Essence Mascara Lash Princess) 50개 주문이 가능합니다.",
+  "order": {
+    "product_id": 1,
+    "product_name": "Essence Mascara Lash Princess",
+    "quantity": 50,
+    "price": 9.99,
+    "total_price": 499.5,
+    "stock": 99,
+    "minimum_order_quantity": 48,
+    "stock_ok": true,
+    "minimum_order_ok": true,
+    "order_available": true,
+    "message": "주문 검증을 통과했습니다."
+  }
+}

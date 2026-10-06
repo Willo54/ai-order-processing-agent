@@ -1,11 +1,23 @@
 # Gemini API Key 등 환경변수 파일 제외
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Python 가상환경 폴더 제외
 .venv/
+venv/
 
 # Python 실행 시 생성되는 캐시 폴더 제외
 __pycache__/
 
 # Python 컴파일 캐시 파일 제외
 *.pyc
+
+# Local logs and tooling caches
+*.log
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+Thumbs.db

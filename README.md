@@ -82,13 +82,12 @@ Cloudflare Quick Tunnel은 Power Automate가 로컬 FastAPI를 호출하도록 �
 │   │   ├── agent-order-success.json
 │   │   └── agent-order-success.txt
 │   └── screenshots/
-│       ├── README.md
-│       ├── power-automate-success.png
-│       ├── tool-calling-log.png
-│       ├── approval-request.png
-│       ├── approval-result.png
-│       ├── order-approved-email.png
-│       └── run-history-success.png
+│       ├── 01-power-automate-flow.png
+│       ├── 02-agent-tool-calling.png
+│       ├── 03-approval-request.png
+│       ├── 04-approval-result.png
+│       ├── 05-order-approved-email.png
+│       └── 06-run-history.png
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -200,33 +199,33 @@ Invoke-RestMethod -Method Post `
 
 ### Power Automate 성공 실행
 
-![이메일 수신부터 주문 검증·승인·완료 메일까지 성공한 흐름](docs/screenshots/power-automate-success.png)
+![이메일 수신부터 주문 검증·승인·완료 메일까지 성공한 흐름](docs/screenshots/01-power-automate-flow.png)
 
 ### 실제 Tool Calling 로그
 
-![상품 검색 후 주문 검증 도구가 호출된 콘솔 로그](docs/screenshots/tool-calling-log.png)
+![상품 검색 후 주문 검증 도구가 호출된 콘솔 로그](docs/screenshots/02-agent-tool-calling.png)
 
 ### Run History
 
-![Succeeded 상태의 성공 실행 이력](docs/screenshots/run-history-success.png)
+![Succeeded 상태의 성공 실행 이력](docs/screenshots/06-run-history.png)
 
 담당자 승인 대기 시간을 포함한 성공 실행입니다.
 
 ### 담당자 승인 요청
 
-![상품명, 수량, 총액, 재고와 최소 주문 수량을 제시하는 승인 요청 메일](docs/screenshots/approval-request.png)
+![상품명, 수량, 총액, 재고와 최소 주문 수량을 제시하는 승인 요청 메일](docs/screenshots/03-approval-request.png)
 
 주문 검증 결과를 담당자에게 전달하고 Approve 또는 Reject를 선택하도록 요청합니다.
 
 ### 담당자 승인 결과
 
-![Power Automate Approvals의 Approved 결과](docs/screenshots/approval-result.png)
+![Power Automate Approvals의 Approved 결과](docs/screenshots/04-approval-result.png)
 
 담당자의 승인 완료 상태를 확인했습니다. 메일 하단의 Microsoft 공통 안내에 Copilot Studio가 언급되지만, 이 프로젝트의 승인 흐름은 Power Automate로 구현했습니다.
 
 ### Outlook 주문 승인 완료 메일
 
-![상품명, 주문 수량 50, 총액 499.5가 포함된 최종 승인 완료 메일](docs/screenshots/order-approved-email.png)
+![상품명, 주문 수량 50, 총액 499.5가 포함된 최종 승인 완료 메일](docs/screenshots/05-order-approved-email.png)
 
 상품 검색·주문 조건 검증·담당자 승인 이후 최종 알림 수신까지 확인했습니다. 함께 확보한 [응답 원본 텍스트](docs/examples/agent-order-success.txt)도 제공합니다.
 

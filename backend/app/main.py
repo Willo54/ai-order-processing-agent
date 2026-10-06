@@ -19,13 +19,7 @@ from google.genai import errors
 # .env 파일의 GEMINI_API_KEY를 환경변수로 불러오기 위한 라이브러리
 from dotenv import load_dotenv
 #=====================================================================
-# 사용자가 /agent/order API로 보내는 자연어 요청 데이터
-class AgentRequest(BaseModel):
-    message: str
-# Gemini가 자연어 주문에서 추출할 구조화된 주문 데이터
-class ExtractedOrder(BaseModel):
-    product_name: str
-    quantity: int
+
 # AI Agent Tool Calling 테스트용 요청 데이터
 class AgentToolRequest(BaseModel):
     message: str
@@ -41,6 +35,9 @@ app = FastAPI()
 
 # Gemini API와 통신하기 위한 Client 생성
 gemini_client = genai.Client()
+
+# AI Agent가 마지막으로 수행한 주문 검증 결과 저장
+latest_validation_result = None
 
 # 상품 정보와 주문 수량을 기준으로 주문 가능 여부를 검증하는 공통 함수
 def validate_order_rules(product: dict, quantity: int):
@@ -75,7 +72,7 @@ def validate_order_rules(product: dict, quantity: int):
     
 @app.get("/")
 def root():
-    return {"message": "9 Dots AI Agent API"}
+    return {"message": "AI Order Processing Agent API"}
 
 
 @app.get("/product/{product_id}")
@@ -103,9 +100,10 @@ def get_product(product_id: int):
 def search_products(q: str):
     response = httpx.get(
         "https://dummyjson.com/products/search",
-        params={"q": q}
+        params={"q": q},
+        timeout=5.0
     )
-
+    response.raise_for_status()
     data = response.json()
 
     products = []
@@ -159,64 +157,16 @@ def validate_order(order: OrderRequest):
     }
 
 @app.post("/agent/order")
-def process_order(request: AgentRequest):
-
-    # 사용자의 자연어 주문을 Gemini에게 전달하고
-    # 상품명과 주문 수량을 구조화된 데이터로 추출
-    response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=request.message,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=ExtractedOrder,
-        ),
-    )
-
-    # Gemini의 Structured Output을 ExtractedOrder 객체로 변환
-    order = response.parsed
-
-    # Gemini가 추출한 상품명으로 외부 Products API 검색
-    product_response = httpx.get(
-        "https://dummyjson.com/products/search",
-        params={"q": order.product_name}
-    )
-
-    product_data = product_response.json()
-
-    # 검색된 상품이 없으면 404 오류 반환
-    if not product_data["products"]:
-        raise HTTPException(
-            status_code=404,
-            detail=f"상품을 찾을 수 없습니다: {order.product_name}"
-        )
-
-    # 검색 결과가 존재할 경우 첫 번째 상품 사용
-    product = product_data["products"][0]
+def agent_order(request: AgentToolRequest):
+    global latest_validation_result
     
-      # 공통 주문 검증 함수 호출
-    validation = validate_order_rules(product, order.quantity)
-   
-    return {
-        "received_message": request.message,
-        "product_id": product["id"],
-        "product_name": product["title"],
-        "quantity": order.quantity,
-        "price": product["price"],
-        "stock": product["stock"],
-        "minimum_order_quantity": product["minimumOrderQuantity"],
-        "total_price": validation["total_price"],
-        "stock_ok": validation["stock_ok"],
-        "minimum_order_ok": validation["minimum_order_ok"],
-        "order_available": validation["order_available"],
-        "message": validation["message"]
-}
-
-@app.post("/agent/tool-test")
-def agent_tool_test(request: AgentToolRequest):
+    # 이전 요청의 검증 결과가 남지 않도록 초기화
+    latest_validation_result = None
+    
     # Gemini에게 주문 처리에 필요한 Tool을 제공
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=f"""
 너는 주문 처리 AI Agent다.
 
@@ -239,9 +189,16 @@ def agent_tool_test(request: AgentToolRequest):
             ),
         )
 
+        if latest_validation_result is None:
+            raise HTTPException(
+                status_code=422,
+                detail="AI Agent가 주문 검증을 완료하지 못했습니다."
+            )
+
         return {
             "received_message": request.message,
-            "agent_response": response.text
+            "agent_response": response.text,
+            "order": latest_validation_result
         }
 
     except errors.ClientError as e:
@@ -254,6 +211,11 @@ def agent_tool_test(request: AgentToolRequest):
         raise HTTPException(
             status_code=502,
             detail="AI Agent 서비스 호출 중 오류가 발생했습니다."
+        )
+    except errors.ServerError as e:
+        raise HTTPException(
+            status_code=503,
+            detail="AI Agent 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요."
         )
     
 # AI Agent가 사용할 상품 검색 Tool
@@ -307,7 +269,7 @@ def search_product_tool(query: str) -> str:
     )
 
 # AI Agent가 사용할 주문 검증 Tool
-def validate_order_tool(product_id: int, quantity: int) -> str:
+def validate_order_tool(product_id: int, quantity: int) -> dict:
     """
     상품 ID와 주문 수량을 기준으로 주문 가능 여부를 검증한다.
 
@@ -318,6 +280,8 @@ def validate_order_tool(product_id: int, quantity: int) -> str:
     Returns:
         재고, 최소 주문 수량, 총 금액, 주문 가능 여부를 반환한다.
     """
+
+    global latest_validation_result
 
     # Gemini가 실제로 Tool을 호출했는지 서버 콘솔에서 확인
     print(
@@ -339,12 +303,18 @@ def validate_order_tool(product_id: int, quantity: int) -> str:
     # 기존에 만든 공통 비즈니스 규칙 재사용
     validation = validate_order_rules(product, quantity)
 
-    return (
-        f"상품명: {product['title']}, "
-        f"주문 수량: {quantity}, "
-        f"현재 재고: {product['stock']}, "
-        f"최소 주문 수량: {product['minimumOrderQuantity']}, "
-        f"총 금액: {validation['total_price']}, "
-        f"주문 가능 여부: {validation['order_available']}, "
-        f"결과: {validation['message']}"
-    )
+    latest_validation_result = {
+        "product_id": product["id"],
+        "product_name": product["title"],
+        "quantity": quantity,
+        "price": product["price"],
+        "total_price": validation["total_price"],
+        "stock": product["stock"],
+        "minimum_order_quantity": product["minimumOrderQuantity"],
+        "stock_ok": validation["stock_ok"],
+        "minimum_order_ok": validation["minimum_order_ok"],
+        "order_available": validation["order_available"],
+        "message": validation["message"]
+}
+
+    return latest_validation_result
